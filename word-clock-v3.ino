@@ -730,6 +730,7 @@ void dht_wrapper() {
 #ifdef ENABLE_PUB
 void doPub() {
     if(elapsedPub>intervalPub) {
+// If a DHT sensor is enabled
 #ifdef ENABLE_DHT
         // Skip this publish if the DHT22 reading is exactly 0
 	    if((uint8_t)dhtHumidity==0) {
@@ -745,14 +746,17 @@ void doPub() {
 
         String pub = "";
 
+// If we have a device name
 #ifdef DEVICE_NAME
 		pub += String(DEVICE_NAME)+";";
 #endif
 
+// If a DHT sensor is enabled
 #ifdef ENABLE_DHT
         pub += "h:"+String((float)dhtHumidity, 2)+"|g,f:"+String((float)dhtFahrenheit, 2)+"|g";
 #endif
 
+// If this is _NOT_ an Electron, get WiFi RSSI
 #if PRODUCT_ID!=10
         if(pub.length()>String(DEVICE_NAME).length()+1)
             pub += ",";
@@ -760,12 +764,14 @@ void doPub() {
         pub += "r:"+String(WiFi.RSSI())+"|g";
 #endif
 
+// If this _IS_ an Electron, grab power management stats
 #if PRODUCT_ID==10
         if(pub.length()>String(DEVICE_NAME).length()+1)
             pub += ",";
 
         pub += "vc:"+String(fuelVcell, 2)+"|g,soc:"+String(fuelSOC, 2)+"|g";
 #endif
+
 
 #ifdef SERIAL_DEBUG
     Serial.println(pub);
