@@ -13,6 +13,8 @@ SYSTEM_MODE(SEMI_AUTOMATIC);
 
 #endif
 
+#define SERIAL_DEBUG
+
 
 #define	ROWS	11
 #define COLS	11
@@ -62,6 +64,22 @@ bool dhtIsGood = false;
 elapsedMillis elapsedPub;
 uint16_t intervalPub = PUB_INTERVAL;
 void doPub();
+#endif
+
+
+#ifdef ENABLEPUB
+#if PRODUCT_ID==10
+PMIC PMIC;
+FuelGauge fuel;
+
+elapsedMillis elapsedFuel;
+#define FUEL_INTERVAL   5*1000
+
+double fuelSOC = 0;
+double fuelVcell = 0;
+
+void doFuel();
+#endif
 #endif
 
 
@@ -145,6 +163,10 @@ void ledChangeHandler(uint8_t r, uint8_t g, uint8_t b) {
 void setup() {
 #ifdef LED_MIRROR
     RGB.onChange(ledChangeHandler);
+#endif
+
+#ifdef SERIAL_DEBUG
+    Serial.begin(9600);
 #endif
 
 
@@ -377,11 +399,11 @@ int functionHandler(String command) {
     // Random color
     } else if(command.equals("RANDOMCOLOR")) {
         randomColor();
-        
+
         EEPROM.write(5, color[0]);
         EEPROM.write(6, color[1]);
         EEPROM.write(7, color[2]);
-        
+
         EFFECT_MODE = 0;
         LAST_MINUTE = -1; // Set this to force the clock to update
 
@@ -731,11 +753,41 @@ void doPub() {
         pub += "h:"+String((float)dhtHumidity, 2)+"|g,f:"+String((float)dhtFahrenheit, 2)+"|g";
 #endif
 
-        pub += ",r:"+String(WiFi.RSSI())+"|g";
+#if PRODUCT_ID!=10
+        if(pub.length()>String(DEVICE_NAME).length()+1)
+            pub += ",";
 
-        Particle.publish(PUB_EVENT, pub, PUB_TTL, PUB_SCOPE);
+        pub += "r:"+String(WiFi.RSSI())+"|g";
+#endif
+
+#if PRODUCT_ID==10
+        if(pub.length()>String(DEVICE_NAME).length()+1)
+            pub += ",";
+
+        pub += "vc:"+String(fuelVcell, 2)+"|g,soc:"+String(fuelSOC, 2)+"|g";
+#endif
+
+#ifdef SERIAL_DEBUG
+    Serial.println(pub);
+#endif
+
+        // Only publish if we actually have something to publish
+        if(pub.length()>String(DEVICE_NAME).length()+1)
+            Particle.publish(PUB_EVENT, pub, PUB_TTL, PUB_SCOPE);
 
         elapsedPub = 0;
+    }
+}
+#endif
+
+
+#if PRODUCT_ID==10
+void doFuel() {
+    if(elapsedFuel>FUEL_INTERVAL) {
+        fuelSOC = fuel.getSoC();
+        fuelVcell = fuel.getVCell();
+
+        fuel_timer = 0;
     }
 }
 #endif
